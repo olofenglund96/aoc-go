@@ -1,0 +1,13 @@
+Lower: p, val: 16
+Iteration 0, score: 16
+Upper: L, val: 38
+Iteration 1, score: 54
+Upper: P, val: 42
+Iteration 2, score: 96
+Lower: v, val: 22
+Iteration 3, score: 118
+Lower: t, val: 20
+Iteration 4, score: 138
+Lower: s, val: 19
+Iteration 5, score: 157
+157
