@@ -4,66 +4,102 @@ import (
 	"fmt"
 
 	"github.com/fatih/color"
+	"golang.org/x/exp/slices"
 )
 
 // GRID
-type Grid struct {
-	Points [][]*Point
-	Width  int
-	Height int
+type Grid[K comparable] struct {
+	Cells      [][]*Cell[K]
+	Width      int
+	Height     int
+	connectFun func(c1 Cell[K], c2 Cell[K]) bool
 }
 
-func NewGrid(points [][]interface{}) Grid {
-	g := Grid{
-		Width:  len(points[0]),
-		Height: len(points),
+func (g Grid[K]) IsConnected(c1 Cell[K], c2 Cell[K]) bool {
+	return g.connectFun(c1, c2)
+}
+
+type Cell[K comparable] struct {
+	Index   Index
+	Context K
+	Repr    string
+	Marked  bool
+}
+
+func (c Cell[K]) String() string {
+	return fmt.Sprintf("[%d,%d]->%s", c.Index.X, c.Index.Y, c.Repr)
+}
+
+func (c Cell[K]) Equal(cell Cell[K]) bool {
+	return c.Index.Equal(cell.Index)
+}
+
+func (c Cell[K]) Accessible(cell Cell[K]) bool {
+	return c.Index.Equal(cell.Index)
+}
+
+func NewGrid[K comparable](cells [][]*Cell[K]) Grid[K] {
+	g := Grid[K]{
+		Width:  len(cells[0]),
+		Height: len(cells),
 	}
 
-	pointGrid := make([][]*Point, g.Height)
-	for i := range pointGrid {
-		pointGrid[i] = make([]*Point, g.Width)
+	cellGrid := make([][]*Cell[K], g.Height)
+	for i := range cellGrid {
+		cellGrid[i] = make([]*Cell[K], g.Width)
 	}
 
-	g.Points = pointGrid
-
-	for i, row := range points {
-		for j, val := range row {
-			g.Points[i][j] = &Point{
-				Index: Index{
-					X: j,
-					Y: i,
-				},
-				Val: val,
-			}
-		}
-	}
+	g.Cells = cells
 
 	return g
 }
 
-func (g Grid) GetPoint(i Index) *Point {
-	return g.Points[i.Y][i.X]
+func NewGridWithConnectFun[K comparable](cells [][]*Cell[K], connectFun func(c1 Cell[K], c2 Cell[K]) bool) Grid[K] {
+	g := Grid[K]{
+		Width:      len(cells[0]),
+		Height:     len(cells),
+		connectFun: connectFun,
+	}
+
+	cellGrid := make([][]*Cell[K], g.Height)
+	for i := range cellGrid {
+		cellGrid[i] = make([]*Cell[K], g.Width)
+	}
+
+	g.Cells = cells
+
+	return g
 }
 
-func (g Grid) InGrid(i Index) bool {
+func (g Grid[K]) Reset(resetFun func(context K) K) {
+	for _, row := range g.Cells {
+		for _, p := range row {
+			p.Context = resetFun(p.Context)
+			p.Marked = false
+		}
+	}
+}
+
+func (g Grid[K]) GetCell(i Index) *Cell[K] {
+	return g.Cells[i.Y][i.X]
+}
+
+func (g Grid[K]) InGrid(i Index) bool {
 	return i.X >= 0 && i.X < g.Width && i.Y >= 0 && i.Y < g.Height
 }
 
-func (g Grid) PrintWithPoints(start Point, comp Point) {
+func (g Grid[K]) PrintBeautifully(cells ...*Cell[K]) {
 	c := color.New(color.FgCyan, color.Bold)
 	r := color.New(color.FgRed, color.Bold)
-	gr := color.New(color.FgGreen, color.Bold)
 	fmt.Println()
-	for _, row := range g.Points {
+	for _, row := range g.Cells {
 		for _, p := range row {
-			if p.Index.Equal(start.Index) {
-				r.Print(p.Val)
-			} else if p.Index.Equal(comp.Index) {
-				gr.Print(p.Val)
-			} else if p.Marked {
-				c.Print(p.Val)
+			if slices.Contains(cells, p) {
+				r.Print(p.Repr)
+			} else if (*p).Marked {
+				c.Print(p.Repr)
 			} else {
-				fmt.Printf(fmt.Sprint(p.Val))
+				fmt.Printf(fmt.Sprint(p.Repr))
 			}
 		}
 		fmt.Println()
@@ -71,36 +107,42 @@ func (g Grid) PrintWithPoints(start Point, comp Point) {
 	fmt.Println()
 }
 
-func (g Grid) Print() {
-	c := color.New(color.FgCyan, color.Bold)
+func (g Grid[K]) Print() {
 	fmt.Println()
-	for _, row := range g.Points {
+	for _, row := range g.Cells {
 		for _, p := range row {
-			if p.Marked {
-				c.Print(p.Val)
-			} else {
-				fmt.Printf(fmt.Sprint(p.Val))
-			}
+			fmt.Printf(fmt.Sprint((*p).String()))
 		}
 		fmt.Println()
 	}
 	fmt.Println()
 }
 
-func (g Grid) PrintMarked() {
+func (g Grid[K]) PrintContext(pFunc func(c Cell[K]) string) {
 	fmt.Println()
-	for _, row := range g.Points {
+	for _, row := range g.Cells {
 		for _, p := range row {
-			if p.Marked {
-				fmt.Printf(fmt.Sprint("#"))
-			} else {
-				fmt.Printf(fmt.Sprint(" "))
-			}
+			fmt.Printf(pFunc(*p))
 		}
 		fmt.Println()
 	}
 	fmt.Println()
 }
+
+// func (g Grid) PrintMarked() {
+// 	fmt.Println()
+// 	for _, row := range g.Points {
+// 		for _, p := range row {
+// 			if p.Marked {
+// 				fmt.Printf(fmt.Sprint("#"))
+// 			} else {
+// 				fmt.Printf(fmt.Sprint(" "))
+// 			}
+// 		}
+// 		fmt.Println()
+// 	}
+// 	fmt.Println()
+// }
 
 type Direction struct {
 	Dx int
@@ -187,13 +229,7 @@ func (i Index) GetManhattanNeighbours() []Index {
 		},
 		{
 			X: i.X,
-			Y: i.Y - 1,
+			Y: i.Y + 1,
 		},
 	}
-}
-
-type Point struct {
-	Index  Index
-	Val    interface{}
-	Marked bool
 }

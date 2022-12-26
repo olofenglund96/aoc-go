@@ -34,7 +34,7 @@ func ReadGridFromFile(filePath string, sep string) [][]int {
 	return grid
 }
 
-func ReadGridFromFileWithFunc(filePath string, parseFunc func(c rune) interface{}) [][]interface{} {
+func ReadGridFromFileWithFunc[K comparable](filePath string, parseFunc func(index Index, c rune) Cell[K]) [][]*Cell[K] {
 	dat, err := os.ReadFile(filePath)
 	if err != nil {
 		panic(err)
@@ -42,15 +42,16 @@ func ReadGridFromFileWithFunc(filePath string, parseFunc func(c rune) interface{
 
 	dat = dat[:len(dat)-1]
 
-	var grid [][]interface{}
+	var grid [][]*Cell[K]
 
-	for _, row := range strings.Split(string(dat), "\n") {
-		var ints []interface{}
-		for _, c := range row {
-			ints = append(ints, parseFunc(c))
+	for i, row := range strings.Split(string(dat), "\n") {
+		var items []*Cell[K]
+		for j, c := range row {
+			cell := parseFunc(Index{X: j, Y: i}, c)
+			items = append(items, &cell)
 		}
 
-		grid = append(grid, ints)
+		grid = append(grid, items)
 	}
 
 	return grid

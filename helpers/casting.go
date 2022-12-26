@@ -42,3 +42,11 @@ func IMin(x int, y int) int {
 func IMax(x int, y int) int {
 	return int(math.Max(float64(x), float64(y)))
 }
+
+func Min[V int | float64](x V, y V) V {
+	return V(math.Min(float64(x), float64(y)))
+}
+
+func Max[V int | float64](x V, y V) V {
+	return V(math.Max(float64(x), float64(y)))
+}
